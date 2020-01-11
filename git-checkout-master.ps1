@@ -7,7 +7,7 @@ Write-Progress -Activity $activity -PercentComplete -1
 $rootPath = Get-Location
 $repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
-$branch = "release/3.0"
+$branch = "master"
 
 $activity = "Checkout $branch"
 Write-Progress -Activity $activity -PercentComplete 0

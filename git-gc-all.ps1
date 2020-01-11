@@ -1,23 +1,51 @@
-# store the current dir
-$rootDir = Get-Location
+$failedCount = 0
+$successCount = 0
 
-# Let the person running the script know what's going on.
-Write-Host "Git Garbage Collection for all repositories..."
+$activity = "Scanning for Repositories"
+Write-Progress -Activity $activity -PercentComplete -1
 
-# Find all git repositories and update it to the master latest revision
-foreach ($i in (Get-ChildItem -Filter ".git" -Directory -Hidden -Recurse))
-{
-    $path = [System.IO.Path]::GetDirectoryName($i.FullName)
-    Write-Host ""
-    Write-Host $path
+$rootPath = Get-Location
+$repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
-    # We have to go to the .git parent directory to call the pull command
-    Set-Location $path
+$activity = "Git Garbage Collection"
+Write-Progress -Activity $activity -PercentComplete 0
 
-    git gc
+$total = $repos.Count
+$n = 0
+$repos | ForEach-Object {
+    $path = Resolve-Path (Split-Path $_ -Parent) -Relative
+    $name = Split-Path $path -Leaf
 
-    # lets get back to the CUR_DIR
-    Set-Location $rootDir
+    Push-Location $path
+    try {
+        $percent = $n * 100 / $total
+
+        $status = "$n/$($total): ($($name)) $($path)"
+        Write-Progress -Activity $activity -Status $status -PercentComplete $percent
+
+        git gc
+        if ($?)
+        {
+            $successCount += 1
+        }
+        else
+        {
+            $failedCount += 1
+        }
+        $n += 1
+    }
+    finally {
+        Pop-Location
+    }
 }
 
+Write-Progress -Activity $activity -Completed
 Write-Host "Complete!"
+
+Write-Host "Success: $successCount"
+if ( $retryCount -gt 0 ) { Write-Host "Retries: $retryCount" }
+if ( $failedCount -gt 0 )
+{
+    Write-Host "Failed: $failedCount"
+    exit 1
+}
