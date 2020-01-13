@@ -45,3 +45,4 @@
 "https://github.com/dotnet/toolset.git"	"toolset"	".\dotnet\toolset"	"master"
 "https://github.com/dotnet/versions.git"	"versions"	".\dotnet\versions"	"master"
 "https://github.com/dotnet-architecture/eShopOnWeb.git"	"eShopOnWeb"	".\dotnet-architecture\eShopOnWeb"	"master"
+"https://github.com/microsoft/dotnet.git"	"dotnet.git"	".\dotnet.git"	"master"
