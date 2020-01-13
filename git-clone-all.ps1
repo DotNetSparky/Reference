@@ -1,40 +1,53 @@
-# test copy
-
 $repos = (Import-Csv -Delimiter "`t" -Path '.\repositories.txt')
 
 if ((-not $repos) -or ($repos.Count -eq 0)) { Exit 1 }
 Write-Host "Count: $($repos.Count)"
 
-$successCount = 0
+$maxRetries = 5
 $failedCount = 0
 $retryCount = 0
+$successCount = 0
 
 $activity = "Cloning Repositories"
+Write-Progress -Activity $activity -PercentComplete -1
 
 $total = $repos.Count
 $n = 0
-foreach ($i in $repos) {
-    $n += 1
-    $status = "$n/$($total): ($($i.Path)) $($i.Url)"
-    $percent = ($n - 1) * 100 / $total
+$repos | ForEach-Object {
+    $path = $_.Path
+    $name = Split-Path $path -Leaf
 
-    Write-Progress -Activity $activity -Status $status -PercentComplete $percent
+    $nRetry = 0
+    while ($nRetry -lt $maxRetries)
+    {
+        $percent = ($n * $maxRetries + $nRetry) * 100 / ($total * $maxRetries)
 
-    $gitPath = Join-Path $i.Path ".git"
-    if (-not (Test-Path $gitPath)) {
-
-        if (-not (Test-Path $i.Path)) {
-            New-Item $i.Path -ItemType Directory | Out-Null
+        $status = "$n/$($total): ($($name)) $($path)"
+        if ($nRetry -gt 0) {
+            $status += " (attempt $nRetry/$maxRetries)"
         }
+        Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git clone $i.Url $i.Path
-        if ($?) {
-            $successCount += 1
+        $gitPath = Join-Path $path ".git"
+        if (-not (Test-Path $gitPath)) {
+
+            if (-not (Test-Path $path)) {
+                New-Item $path -ItemType Directory | Out-Null
+            }
+
+            git clone $_.Url $path
+            if ($?)
+            {
+                $successCount += 1
+                break
+            }
         }
-        else {
-            $failedCount += 1
-        }
+        $nRetry += 1
+        $retryCount += 1
+        if ($nRetry -ge $maxRetries) { $failedCount += 1 }
     }
+
+    $n += 1
 }
 
 Write-Progress -Activity $activity -Completed
