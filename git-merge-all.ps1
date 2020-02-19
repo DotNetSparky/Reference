@@ -23,7 +23,7 @@ $repos | ForEach-Object {
         $status = "$n/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git merge --ff-only
+        git merge --ff-only 1>$null
         if ($?)
         {
             $successCount += 1

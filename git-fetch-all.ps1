@@ -31,7 +31,7 @@ $repos | ForEach-Object {
             }
             Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-            git fetch --all --tags --prune --prune-tags --recurse-submodules
+            git fetch --all --tags --prune --prune-tags --recurse-submodules 1>$null
             if ($?)
             {
                 $successCount += 1
