@@ -1,19 +1,42 @@
+[CmdletBinding()]
+Param(
+    [switch] $list
+)
+
 $failedCount = 0
 $successCount = 0
+$failedList = @()
 
 $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
 
 $rootPath = Get-Location
-$repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
+# unlike for fetch, don't restrict to only directories, additional workspaces will have a ".git" file...
+$repos = @(
+    Get-ChildItem -Filter ".git" -Depth 3 -Hidden -Recurse `
+    | Where-Object {
+        # don't include the root (this is the repo that contains these utility scripts)
+        # don't include anything underneath a .git folder
+        $p = Split-Path $_.FullName -Parent
+        $p -ne $rootPath -and $p -notmatch "\\\.git\\"
+    } `
+    | Select-Object -ExpandProperty FullName
+)
+
+if ($list) {
+    foreach ($i in $repos) {
+        Write-Host $i
+    }
+    exit 0
+}
 
 $activity = "Merge (ff-only)"
 Write-Progress -Activity $activity -PercentComplete 0
 
 $total = $repos.Count
 $n = 0
-$repos | ForEach-Object {
-    $path = Resolve-Path (Split-Path $_ -Parent) -Relative
+foreach ($i in $repos) {
+    $path = Resolve-Path (Split-Path $i -Parent) -Relative
     $name = Split-Path $path -Leaf
 
     Push-Location $path
@@ -31,6 +54,7 @@ $repos | ForEach-Object {
         else
         {
             $failedCount += 1
+            $failedList += $path
         }
         $n += 1
     }
@@ -47,5 +71,8 @@ if ( $retryCount -gt 0 ) { Write-Host "Retries: $retryCount" }
 if ( $failedCount -gt 0 )
 {
     Write-Host "Failed: $failedCount"
+    foreach ($i in $failedList) {
+        Write-Host "  >> " + $i
+    }
     exit 1
 }

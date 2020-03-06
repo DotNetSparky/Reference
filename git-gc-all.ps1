@@ -1,5 +1,11 @@
+[CmdletBinding()]
+Param(
+    [switch] $aggressive
+)
+
 $failedCount = 0
 $successCount = 0
+$failedList = @()
 
 $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
@@ -12,18 +18,23 @@ Write-Progress -Activity $activity -PercentComplete 0
 
 $total = $repos.Count
 $n = 0
-$repos | ForEach-Object {
-    $path = Resolve-Path (Split-Path $_ -Parent) -Relative
+foreach ($i in $repos) {
+    $path = Resolve-Path (Split-Path $i -Parent) -Relative
     $name = Split-Path $path -Leaf
 
     Push-Location $path
     try {
         $percent = $n * 100 / $total
 
+        $gitArgs = @()
+        if ($aggressive) {
+            $gitArgs += "--aggressive"
+        }
+
         $status = "$n/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git gc
+        git gc @gitArgs
         if ($?)
         {
             $successCount += 1
@@ -31,6 +42,7 @@ $repos | ForEach-Object {
         else
         {
             $failedCount += 1
+            $failedList += $path
         }
         $n += 1
     }
@@ -41,11 +53,12 @@ $repos | ForEach-Object {
 
 Write-Progress -Activity $activity -Completed
 Write-Host "Complete!"
-
 Write-Host "Success: $successCount"
-if ( $retryCount -gt 0 ) { Write-Host "Retries: $retryCount" }
 if ( $failedCount -gt 0 )
 {
     Write-Host "Failed: $failedCount"
+    foreach ($i in $failedList) {
+        Write-Host "  >> " + $i
+    }
     exit 1
 }

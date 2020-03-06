@@ -1,7 +1,13 @@
+[CmdletBinding()]
+Param(
+    [switch] $force
+)
+
 $maxRetries = 5
 $failedCount = 0
 $retryCount = 0
 $successCount = 0
+$failedList = @()
 
 $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
@@ -14,12 +20,25 @@ Write-Progress -Activity $activity -PercentComplete 0
 
 $total = $repos.Count
 $n = 0
-$repos | ForEach-Object {
-    $path = Resolve-Path (Split-Path $_ -Parent) -Relative
+foreach ($i in $repos) {
+    $path = Resolve-Path (Split-Path $i -Parent) -Relative
     $name = Split-Path $path -Leaf
 
     Push-Location $path
     try {
+
+        $gitArgs = @(
+            "--all"
+            "--tags"
+            "--prune"
+            "--prune-tags"
+            "--recurse-submodules"
+            "--quiet"
+        )
+        if ($force) {
+            $gitArgs += "--force"
+        }
+
         $nRetry = 0
         while ($nRetry -lt $maxRetries)
         {
@@ -31,7 +50,7 @@ $repos | ForEach-Object {
             }
             Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-            git fetch --all --tags --prune --prune-tags --recurse-submodules 1>$null
+            git fetch @gitArgs 1>$null
             if ($?)
             {
                 $successCount += 1
@@ -39,7 +58,10 @@ $repos | ForEach-Object {
             }
             $nRetry += 1
             $retryCount += 1
-            if ($nRetry -ge $maxRetries) { $failedCount += 1 }
+            if ($nRetry -ge $maxRetries) {
+                $failedCount += 1
+                $failedList += $path
+            }
         }
         $n += 1
     }
@@ -56,5 +78,8 @@ if ( $retryCount -gt 0 ) { Write-Host "Retries: $retryCount" }
 if ( $failedCount -gt 0 )
 {
     Write-Host "Failed: $failedCount"
+    foreach ($i in $failedList) {
+        Write-Host "  >> " + $i
+    }
     exit 1
 }
