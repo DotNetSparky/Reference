@@ -3,6 +3,10 @@ Param(
     [switch] $list
 )
 
+$skip = @(
+    '\\ref\\'
+)
+
 $failedCount = 0
 $successCount = 0
 $failedList = @()
@@ -21,6 +25,7 @@ $repos = @(
         $p -ne $rootPath -and $p -notmatch "\\\.git\\"
     } `
     | Select-Object -ExpandProperty FullName
+    | Where-Object { $_ -notmatch $skip }
 )
 
 if ($list) {
