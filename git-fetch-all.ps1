@@ -1,9 +1,10 @@
 [CmdletBinding()]
 Param(
-    [switch] $force
+    [int] $Depth = 3,
+    [int] $MaxRetries = 5,
+    [switch] $Force
 )
 
-$maxRetries = 5
 $failedCount = 0
 $retryCount = 0
 $successCount = 0
@@ -13,7 +14,7 @@ $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
 
 $rootPath = Get-Location
-$repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
+$repos = @(Get-ChildItem -Filter ".git" -Depth $Depth -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
 $activity = "Fetching Repositories"
 Write-Progress -Activity $activity -PercentComplete 0
@@ -35,7 +36,7 @@ foreach ($i in $repos) {
             "--recurse-submodules"
             "--quiet"
         )
-        if ($force) {
+        if ($Force) {
             $gitArgs += "--force"
         }
 

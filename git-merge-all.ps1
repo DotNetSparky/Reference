@@ -1,6 +1,7 @@
 [CmdletBinding()]
 Param(
-    [switch] $list
+    [int] $Depth = 3,
+    [switch] $List
 )
 
 $skip = @(
@@ -17,7 +18,7 @@ Write-Progress -Activity $activity -PercentComplete -1
 $rootPath = Get-Location
 # unlike for fetch, don't restrict to only directories, additional workspaces will have a ".git" file...
 $repos = @(
-    Get-ChildItem -Filter ".git" -Depth 3 -Hidden -Recurse `
+    Get-ChildItem -Filter ".git" -Depth $Depth -Hidden -Recurse `
     | Where-Object {
         # don't include the root (this is the repo that contains these utility scripts)
         # don't include anything underneath a .git folder
@@ -28,7 +29,7 @@ $repos = @(
     | Where-Object { $_ -notmatch $skip }
 )
 
-if ($list) {
+if ($List) {
     foreach ($i in $repos) {
         Write-Host $i
     }
