@@ -15,6 +15,7 @@ Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Where-Object
     Push-Location $path
     try {
         $url = git remote get-url origin
+        $head = (Get-Content -Path '.git\refs\remotes\origin\HEAD' -ErrorAction Ignore) -replace 'ref: ', ''
         if ($?) {
             $branch = git branch --show-current
             $i = @{
@@ -22,6 +23,7 @@ Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Where-Object
                 Path = $path
                 Url = $url
                 Branch = $branch
+                Head = $head
             }
             $repos += $i
         }
@@ -38,7 +40,7 @@ $repos = $repos | Sort-Object -Property Url
 Write-Host ""
 Write-Host "Found $($repos.Count) repositories"
 
-$repos | Select-Object -Property Url,Name,Path,Branch | Format-Table -AutoSize
-$repos | Select-Object -Property Url,Name,Path,Branch | Export-Csv -Delimiter "`t" -Path '.\repositories.txt'
+$repos | Select-Object -Property Path,Name,Url,Branch,Head | Sort-Object -Property Path | Format-Table -AutoSize
+$repos | Select-Object -Property Path,Name,Url,Branch,Head | Sort-Object -Property Path | Export-Csv -Delimiter "`t" -Path '.\repositories.txt'
 
 exit 0

@@ -1,6 +1,7 @@
 [CmdletBinding()]
 Param(
     [int] $Depth = 5,
+    [switch] $Hard,
     [switch] $List
 )
 
@@ -25,7 +26,7 @@ $repos = @(
         $p = Split-Path $_.FullName -Parent
         $p -ne $rootPath -and $p -notmatch "\\\.git\\"
     } `
-    | Select-Object -ExpandProperty FullName `
+    | Select-Object -ExpandProperty FullName
     | Where-Object { $_ -notmatch $skip }
 )
 
@@ -36,7 +37,14 @@ if ($List) {
     exit 0
 }
 
-$activity = "Merge (ff-only)"
+$activity = "Reset"
+if ($Hard) {
+    $activity += ' (hard)'
+}
+else {
+    $activity += ' (soft)'
+}
+
 Write-Progress -Activity $activity -PercentComplete 0
 
 $total = $repos.Count
@@ -52,7 +60,12 @@ foreach ($i in $repos) {
         $status = "$n/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git merge --ff-only 1>$null
+        if ($Hard) {
+            git reset --hard # 1>$null
+        }
+        else {
+            git reset --soft # 1>$null
+        }
         if ($?)
         {
             $successCount += 1

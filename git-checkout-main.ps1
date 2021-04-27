@@ -7,9 +7,9 @@ Write-Progress -Activity $activity -PercentComplete -1
 $rootPath = Get-Location
 $repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
-$branch = "master"
+$branch = "main", "master"
 
-$activity = "Checkout $branch"
+$activity = "Checkout: $($branch -join ', ')"
 Write-Progress -Activity $activity -PercentComplete 0
 
 $total = $repos.Count
@@ -25,8 +25,15 @@ $repos | ForEach-Object {
         $status = "$n/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git checkout $branch
-        if ($?)
+        $ok = $false
+        foreach ($i in $branch) {
+            git checkout $i
+            if ($?) {
+                $ok = $true
+                break
+            }
+        }
+        if ($ok)
         {
             $successCount += 1
         }

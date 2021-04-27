@@ -1,5 +1,6 @@
 [CmdletBinding()]
 Param(
+    [int] $Depth = 5
 )
 
 $failedCount = 0
@@ -10,9 +11,9 @@ $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
 
 $rootPath = Get-Location
-$repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
+$repos = @(Get-ChildItem -Filter ".git" -Depth $Depth -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
-$activity = "Git Garbage Collection"
+$activity = "Git Object Pruning"
 Write-Progress -Activity $activity -PercentComplete 0
 
 $total = $repos.Count
@@ -23,10 +24,10 @@ foreach ($i in $repos) {
 
     Push-Location $path
     try {
-        $percent = $n * 100 / $total
 
         $gitArgs = @()
 
+        $percent = $n * 100 / $total
         $status = "$n/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
@@ -48,7 +49,10 @@ foreach ($i in $repos) {
 }
 
 Write-Progress -Activity $activity -Completed
+
+Clear-Host
 Write-Host "Complete!"
+
 Write-Host "Success: $successCount"
 if ( $failedCount -gt 0 )
 {

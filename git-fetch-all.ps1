@@ -1,6 +1,6 @@
 [CmdletBinding()]
 Param(
-    [int] $Depth = 3,
+    [int] $Depth = 5,
     [int] $MaxRetries = 5,
     [switch] $Force
 )
@@ -72,6 +72,8 @@ foreach ($i in $repos) {
 }
 
 Write-Progress -Activity $activity -Completed
+
+Clear-Host
 Write-Host "Complete!"
 
 Write-Host "Success: $successCount"

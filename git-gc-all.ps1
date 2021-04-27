@@ -1,7 +1,14 @@
 [CmdletBinding()]
 Param(
-    [switch] $aggressive
+    [int] $Depth = 5,
+    [switch] $Aggressive,
+
+    [switch] $FullRepack
 )
+
+if (-not $Path) {
+    $Path = $PSScriptRoot
+}
 
 $failedCount = 0
 $successCount = 0
@@ -11,10 +18,19 @@ $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
 
 $rootPath = Get-Location
-$repos = @(Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
+$repos = @(Get-ChildItem -Filter ".git" -Depth $Depth -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
 $activity = "Git Garbage Collection"
 Write-Progress -Activity $activity -PercentComplete 0
+
+$gcArgs = @()
+if ($Aggressive) {
+    $gcArgs += "--aggressive"
+}
+
+$reflogExpireArgs = @(
+    '--expire=1.month.ago'
+)
 
 $total = $repos.Count
 $n = 0
@@ -24,18 +40,43 @@ foreach ($i in $repos) {
 
     Push-Location $path
     try {
+
         $percent = $n * 100 / $total
-
-        $gitArgs = @()
-        if ($aggressive) {
-            $gitArgs += "--aggressive"
-        }
-
-        $status = "$n/$($total): ($($name)) $($path)"
+        $status = "$($n+1)/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git gc @gitArgs
-        if ($?)
+        $ok = $true
+
+        if ($FullRepack) {
+            if ($ok) {
+                Write-Progress -Activity $activity -Status $status -CurrentOperation 'git remote prunt origin' -PercentComplete ((($n * 5 * 100) + 0) / ($total * 5))
+                git remote prune origin
+                $ok = $?
+            }
+            if ($ok) {
+                Write-Progress -Activity $activity -Status $status -CurrentOperation 'git repack' -PercentComplete ((($n * 5 * 100) + 1) / ($total * 5))
+                git repack
+                $ok = $?
+            }
+            if ($ok) {
+                Write-Progress -Activity $activity -Status $status -CurrentOperation 'git prune-packed' -PercentComplete ((($n * 5 * 100) + 2) / ($total * 5))
+                git prune-packed
+                $ok = $?
+            }
+            if ($ok) {
+                Write-Progress -Activity $activity -Status $status -CurrentOperation 'git reflog expire' -PercentComplete ((($n * 5 * 100) + 3) / ($total * 5))
+                git reflog expire @reflogExpireArgs
+                $ok = $?
+            }
+        }
+
+        if ($ok) {
+            Write-Progress -Activity $activity -Status $status -CurrentOperation 'git gc' -PercentComplete ((($n * 5 * 100) + 4) / ($total * 5))
+            git gc @gcArgs
+            $ok = $?
+        }
+
+        if ($ok)
         {
             $successCount += 1
         }
@@ -52,7 +93,10 @@ foreach ($i in $repos) {
 }
 
 Write-Progress -Activity $activity -Completed
+
+Clear-Host
 Write-Host "Complete!"
+
 Write-Host "Success: $successCount"
 if ( $failedCount -gt 0 )
 {

@@ -1,12 +1,11 @@
 [CmdletBinding()]
 Param(
-    [int] $Depth = 5,
-    [switch] $List
+    [int] $Depth = 5
 )
 
-$skip = @(
-    '\\ref\\'
-)
+if (-not $Path) {
+    $Path = $PSScriptRoot
+}
 
 $failedCount = 0
 $successCount = 0
@@ -16,28 +15,14 @@ $activity = "Scanning for Repositories"
 Write-Progress -Activity $activity -PercentComplete -1
 
 $rootPath = Get-Location
-# unlike for fetch, don't restrict to only directories, additional workspaces will have a ".git" file...
-$repos = @(
-    Get-ChildItem -Filter ".git" -Depth $Depth -Hidden -Recurse `
-    | Where-Object {
-        # don't include the root (this is the repo that contains these utility scripts)
-        # don't include anything underneath a .git folder
-        $p = Split-Path $_.FullName -Parent
-        $p -ne $rootPath -and $p -notmatch "\\\.git\\"
-    } `
-    | Select-Object -ExpandProperty FullName `
-    | Where-Object { $_ -notmatch $skip }
-)
+$repos = @(Get-ChildItem -Filter ".git" -Depth $Depth -Directory -Hidden -Recurse | Select-Object -ExpandProperty FullName | Where-Object { (Split-Path $_ -Parent) -ne $rootPath } )
 
-if ($List) {
-    foreach ($i in $repos) {
-        Write-Host $i
-    }
-    exit 0
-}
-
-$activity = "Merge (ff-only)"
+$activity = "Git Set Remote Head"
 Write-Progress -Activity $activity -PercentComplete 0
+
+$reflogExpireArgs = @(
+    '--expire=1.month.ago'
+)
 
 $total = $repos.Count
 $n = 0
@@ -47,13 +32,20 @@ foreach ($i in $repos) {
 
     Push-Location $path
     try {
-        $percent = $n * 100 / $total
 
-        $status = "$n/$($total): ($($name)) $($path)"
+        $percent = $n * 100 / $total
+        $status = "$($n+1)/$($total): ($($name)) $($path)"
         Write-Progress -Activity $activity -Status $status -PercentComplete $percent
 
-        git merge --ff-only 1>$null
-        if ($?)
+        $ok = $true
+
+        if ($ok) {
+            Write-Progress -Activity $activity -Status $status -CurrentOperation 'git remote set-head' -PercentComplete ($n * 100 / $total)
+            git remote set-head origin --auto
+            $ok = $?
+        }
+
+        if ($ok)
         {
             $successCount += 1
         }
@@ -75,7 +67,6 @@ Clear-Host
 Write-Host "Complete!"
 
 Write-Host "Success: $successCount"
-if ( $retryCount -gt 0 ) { Write-Host "Retries: $retryCount" }
 if ( $failedCount -gt 0 )
 {
     Write-Host "Failed: $failedCount"
