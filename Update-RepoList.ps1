@@ -6,7 +6,7 @@ Write-Progress -Activity $activity -PercentComplete -1
 $repos = @()
 $rootPath = Get-Location
 
-Get-ChildItem -Filter ".git" -Depth 3 -Directory -Hidden -Recurse | Where-Object { (Split-Path $_.FullName -Parent) -ne $rootPath } | ForEach-Object {
+Get-ChildItem -Filter ".git" -Depth 5 -Directory -Hidden -Recurse | Where-Object { (Split-Path $_.FullName -Parent) -ne $rootPath } | ForEach-Object {
     $path = Resolve-Path (Split-Path $_.FullName -Parent) -Relative
     $name = Split-Path $path -Leaf
 
